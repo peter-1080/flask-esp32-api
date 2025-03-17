@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pond Water Quality Monitor & Predictor</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            text-align: center;
+            padding: 20px;
+            background: linear-gradient(135deg, #e0f7fa, #80deea);
+            color: #333;
+        }
+        .title {
+            font-size: 26px;
+            font-weight: bold;
+            margin-bottom: 20px;
+            color: #004d40;
+        }
+        h2 {
+            color: #007bff;
+            margin-top: 20px;
+            text-transform: uppercase;
+            font-size: 20px;
+        }
+        table {
+            width: 80%;
+            margin: 20px auto;
+            border-collapse: collapse;
+            background: white;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        th, td {
+            padding: 12px;
+            border: 1px solid #ddd;
+            text-align: center;
+            font-size: 16px;
+        }
+        th {
+            background-color: #007bff;
+            color: white;
+        }
+        .safe {
+            background-color: #c8e6c9;
+        }
+        .warning {
+            background-color: #fff3cd;
+        }
+        .danger {
+            background-color: #f8d7da;
+            color: red;
+            font-weight: bold;
+        }
+        .container {
+            padding: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 class="title">Pond Water Quality Monitor & Predictor</h1>
+    </div>
+
+    <h2>Real-Time Data</h2>
+    <table>
+        <tr>
+            <th>Parameter</th>
+            <th>Value</th>
+            <th>Status</th>
+        </tr>
+        <tbody id="realtime-data"></tbody>
+    </table>
+
+    <h2>6HR Predictions</h2>
+    <table>
+        <tr>
+            <th>Parameter</th>
+            <th>Value</th>
+            <th>Status</th>
+        </tr>
+        <tbody id="predict-6hr"></tbody>
+    </table>
+
+    <h2>12HR Predictions</h2>
+    <table>
+        <tr>
+            <th>Parameter</th>
+            <th>Value</th>
+            <th>Status</th>
+        </tr>
+        <tbody id="predict-12hr"></tbody>
+    </table>
+
+    <script>
+        const parameterMapping = {
+            "TEMP": "Temperature",
+            "PH": "pH Level",
+            "AMMONIA": "Ammonia Concentration",
+            "DO": "Dissolved Oxygen",
+            "TURBIDITY": "Water Turbidity"
+        };
+
+        function fetchData() {
+            fetch('/latest')
+                .then(response => response.json())
+                .then(data => updateTable(data, 'realtime-data'));
+            fetch('/predict/6hr')
+                .then(response => response.json())
+                .then(data => updateTable(data.predictions, 'predict-6hr'));
+            fetch('/predict/12hr')
+                .then(response => response.json())
+                .then(data => updateTable(data.predictions, 'predict-12hr'));
+        }
+
+        function updateTable(data, tableId) {
+            const table = document.getElementById(tableId);
+            table.innerHTML = '';
+            const safeRanges = { TEMP: [20, 30], PH: [6.5, 8.5], AMMONIA: [0, 0.5], DO: [5, 10], TURBIDITY: [0, 50] };
+
+            for (let key in safeRanges) {
+                if (data[key] !== undefined) {
+                    let displayName = parameterMapping[key] || key;
+                    let status = 'Normal';
+                    let className = 'safe';
+                    if (data[key] < safeRanges[key][0] || data[key] > safeRanges[key][1]) {
+                        status = 'Out of Range';
+                        className = 'danger';
+                    } else if (key === "AMMONIA" && data[key] > 0.3) {
+                        status = 'Warning';
+                        className = 'warning';
+                    }
+
+                    table.innerHTML += `<tr class="${className}"><td>${displayName}</td><td>${data[key]}</td><td>${status}</td></tr>`;
+                }
+            }
+        }
+
+        setInterval(fetchData, 5000);
+        fetchData();
+    </script>
+</body>
+</html>

@@ -1,0 +1,17 @@
+# Ignore Python cache and environment files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Ignore virtual environment
+.vscode/
+.venv/
+
+# Ignore model files and datasets
+*.h5
+*.pkl
+pondsEdited.csv
+
+# Ignore environment variables
+.env
