@@ -11,7 +11,7 @@ CORS(app)
 latest_data = {}
 
 # Telegram Bot Config
-TELEGRAM_BOT_TOKEN = "7662400218:AAFm4C38sSoH9HOnWKMhRGc624xPMAyczMk"
+TELEGRAM_BOT_TOKEN = "7662400218:AAFm4HOnWKMhRGc624xPMAyczMk"  # Replace with your valid token
 CHAT_ID = "868999324"
 bot = telebot.TeleBot(TELEGRAM_BOT_TOKEN)
 
@@ -31,20 +31,29 @@ def send_telegram_alert(parameter, value, alert_type="Real-time"):
     bot.send_message(CHAT_ID, message)
 
 
-# Route to receive data from ESP32
+# ✅ Route to receive data from ESP32 (Fixed to match ESP32 request)
 @app.route('/update', methods=['POST'])
 def update_data():
     global latest_data
-    data = request.json
-    data["timestamp"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    try:
+        data = request.json
+        if not data:
+            return jsonify({"error": "Invalid JSON data"}), 400
 
-    # Check if real-time values are in safe range
-    for key, (low, high) in SAFE_RANGES.items():
-        if key in data and not (low <= data[key] <= high):
-            send_telegram_alert(key, data[key], "Real-time")
+        print("Received Data:", data)  # Debugging Log
 
-    latest_data = data
-    return jsonify({"message": "Data received", "data": latest_data})
+        data["timestamp"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+        # Check if real-time values are in safe range
+        for key, (low, high) in SAFE_RANGES.items():
+            if key in data and not (low <= data[key] <= high):
+                send_telegram_alert(key, data[key], "Real-time")
+
+        latest_data = data
+        return jsonify({"message": "Data received", "data": latest_data}), 200
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 
 # Route to get latest data
