@@ -1,13 +1,14 @@
 from flask import Flask, request, jsonify, render_template
 from flask_cors import CORS
 import requests
-from datetime import datetime
+from datetime import datetime, timedelta
 
 app = Flask(__name__)
 CORS(app)
 
 # Store latest sensor data
 latest_data = {}
+last_alert_times = {}  # Track last alert times for each parameter
 
 # Telegram Bot URL (Using your provided link)
 TELEGRAM_BOT_URL = "https://api.telegram.org/bot7908226825:AAGI8NfAnDh4NOiXFvi9TYU5Xi6ulEzR68Q/sendMessage?chat_id=821076239&text="
@@ -18,11 +19,23 @@ SAFE_RANGES = {
     "PH": (6.5, 8.5),
     "AMMONIA": (0, 0.5),
     "DO": (5, 10),
-    "TURBIDITY": (0, 50)
+    "TURBIDITY": (1, 20)  # Updated turbidity range
 }
 
-# Send Telegram Alert using the provided URL
+
+# Send Telegram Alert only if 5 minutes have passed since the last alert for the parameter
 def send_telegram_alert(parameter, value, alert_type="Real-time"):
+    global last_alert_times
+    current_time = datetime.now()
+
+    # Check last alert time for the parameter
+    if parameter in last_alert_times:
+        elapsed_time = current_time - last_alert_times[parameter]
+        if elapsed_time < timedelta(minutes=5):
+            return  # Skip alert if it's within the 5-minute window
+
+    last_alert_times[parameter] = current_time  # Update last alert time
+
     message = f"⚠ ALERT: {parameter} ({alert_type}) is out of range! Current Value: {value}"
     url = TELEGRAM_BOT_URL + message
 
@@ -32,6 +45,7 @@ def send_telegram_alert(parameter, value, alert_type="Real-time"):
             print(f"❌ Telegram Alert Failed: {response.text}")
     except Exception as e:
         print(f"❌ Error sending Telegram Alert: {str(e)}")
+
 
 # ✅ Route to receive data from ESP32
 @app.route('/update', methods=['POST'])
@@ -65,12 +79,14 @@ def update_data():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+
 # Route to get latest data
 @app.route('/latest', methods=['GET'])
 def get_latest_data():
     if not latest_data:
         return jsonify({"message": "No data available"})
     return jsonify(latest_data)
+
 
 # Prediction API with Alerts
 @app.route('/predict/<interval>', methods=['GET'])
@@ -97,10 +113,12 @@ def predict_data(interval):
     except Exception as e:
         return jsonify({"error": f"Prediction failed: {str(e)}"}), 500
 
+
 # Route to serve the web UI
 @app.route('/')
 def home():
     return render_template('index.html')
+
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)
